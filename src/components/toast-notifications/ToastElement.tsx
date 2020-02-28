@@ -1,15 +1,15 @@
-import React, { ComponentProps, useRef, useState, useEffect } from 'react';
-import { keyframes } from '@emotion/core';
+import React, { useRef, useState, useEffect } from 'react';
 import { CheckIcon, FlameIcon, AlertIcon, InfoIcon, CloseIcon } from './icons';
 import * as colors from './colors';
 import { Placement, HoverFn } from './types';
-import { NOOP } from './Utils';
+
+import './toast-notification.css';
+import { TransitionStatus } from 'react-transition-group/Transition';
 
 // common
 export const borderRadius = 4;
 export const gutter = 8;
 export const toastWidth = 360;
-export const shrinkKeyframes = keyframes`from { height: 100%; } to { height: 0% }`;
 
 const appearances = {
     success: {
@@ -74,23 +74,26 @@ export interface CountdownProps {
     autoDismissTimeout: number, opacity: number, isRunning: boolean, [key: string]: any
 }
 
-const Countdown = (props: CountdownProps) => (
-    <div
-        className="react-toast-notifications__toast__countdown"
-        css={{
-            animation: `${shrinkKeyframes} ${props.autoDismissTimeout}ms linear`,
-            animationPlayState: props.isRunning ? 'running' : 'paused',
-            backgroundColor: 'rgba(0,0,0,0.1)',
-            bottom: 0,
-            height: 0,
-            left: 0,
-            opacity: props.opacity,
-            position: 'absolute',
-            width: '100%',
-        }}
-        {...props}
-    />
-);
+const Countdown = (props: CountdownProps) => {
+    const countdownStyles = {
+        animation: `shrinkKeyframes ${props.autoDismissTimeout}ms linear`,
+        animationPlayState: props.isRunning ? 'running' : 'paused',
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        bottom: 0,
+        height: 0,
+        left: 0,
+        opacity: props.opacity,
+        position: 'absolute',
+        width: '100%',
+    } as React.CSSProperties;
+    return (
+        <div
+            className="react-toast-notifications__toast__countdown"
+            style={countdownStyles}
+            {...props}
+        />
+    );
+}
 
 export interface IconProps {
     appearance: AppearanceTypes,
@@ -101,23 +104,23 @@ export interface IconProps {
 
 const Icon = (props: IconProps) => {
     const meta = appearances[props.appearance];
-
+    const iconStyle = {
+        backgroundColor: meta.fg,
+        borderTopLeftRadius: borderRadius,
+        borderBottomLeftRadius: borderRadius,
+        color: meta.bg,
+        flexShrink: 0,
+        paddingBottom: gutter,
+        paddingTop: gutter,
+        position: 'relative',
+        overflow: 'hidden',
+        textAlign: 'center',
+        width: 30,
+    } as React.CSSProperties;
     return (
         <div
             className="react-toast-notifications__toast__icon-wrapper"
-            css={{
-                backgroundColor: meta.fg,
-                borderTopLeftRadius: borderRadius,
-                borderBottomLeftRadius: borderRadius,
-                color: meta.bg,
-                flexShrink: 0,
-                paddingBottom: gutter,
-                paddingTop: gutter,
-                position: 'relative',
-                overflow: 'hidden',
-                textAlign: 'center',
-                width: 30,
-            }}
+            style={iconStyle}
         >
             <Countdown
                 opacity={props.autoDismiss ? 1 : 0}
@@ -146,23 +149,23 @@ function getTranslate(placement: Placement) {
 
     return translateMap.get(relevantPlacement);
 }
-export type TransitionState = 'entering' | 'entered' | 'exiting' | 'exited';
-const toastStates = (placement: Placement) => ({
+export const toastStates = (placement: Placement) => ({
     entering: { transform: getTranslate(placement) },
     entered: { transform: 'translate3d(0,0,0)' },
     exiting: { transform: 'scale(0.66)', opacity: 0 },
     exited: { transform: 'scale(0.66)', opacity: 0 },
+    unmounted: {}
 });
 
 export interface ToastElementProps {
     appearance: AppearanceTypes,
     placement: Placement,
     transitionDuration: number,
-    transitionState: TransitionState,
+    transitionState: TransitionStatus,
     [key: string]: any
 }
 
-const ToastElement: React.FC<ToastElementProps> = props => {
+const ToastElement = (props: ToastElementProps) => {
     const { appearance, placement, transitionState, transitionDuration, ...otherProps } = props;
     const [height, setHeight] = useState('auto');
     const elementRef = useRef<HTMLDivElement>(null);
@@ -179,28 +182,29 @@ const ToastElement: React.FC<ToastElementProps> = props => {
         },
         [transitionState]
     );
-
+    const toastElementStyle = {
+        height,
+        transition: `height ${transitionDuration - 100}ms 100ms`,
+    }  as React.CSSProperties;
+    const toastElementAppearanceStyle = {
+        backgroundColor: appearances[appearance].bg,
+        borderRadius,
+        boxShadow: '0 3px 8px rgba(0, 0, 0, 0.175)',
+        color: appearances[appearance].text,
+        display: 'flex',
+        marginBottom: gutter,
+        transition: `transform ${transitionDuration}ms cubic-bezier(0.2, 0, 0, 1), opacity ${transitionDuration}ms`,
+        width: toastWidth,
+        ...toastStates(placement)[transitionState],
+    }  as React.CSSProperties;
     return (
         <div
             ref={elementRef}
-            style={{ height }}
-            css={{
-                transition: `height ${transitionDuration - 100}ms 100ms`,
-            }}
+            style={toastElementStyle}
         >
             <div
                 className={`react-toast-notifications__toast react-toast-notifications__toast--${appearance}`}
-                css={{
-                    backgroundColor: appearances[appearance].bg,
-                    borderRadius,
-                    boxShadow: '0 3px 8px rgba(0, 0, 0, 0.175)',
-                    color: appearances[appearance].text,
-                    display: 'flex',
-                    marginBottom: gutter,
-                    transition: `transform ${transitionDuration}ms cubic-bezier(0.2, 0, 0, 1), opacity ${transitionDuration}ms`,
-                    width: toastWidth,
-                    ...toastStates(placement)[transitionState],
-                }}
+                style={toastElementAppearanceStyle}
                 {...otherProps}
             />
         </div>
@@ -214,18 +218,13 @@ export interface ToastProps {
     appearance: AppearanceTypes,
     autoDismiss: boolean, // may be inherited from ToastProvider
     autoDismissTimeout: number, // inherited from ToastProvider
-    children: Node,
-    isRunning: boolean,
-    onDismiss: typeof NOOP,
-    onMouseEnter: HoverFn,
-    onMouseLeave: HoverFn,
+    onDismiss: () => {},
     placement: Placement,
-    transitionDuration: number, // inherited from ToastProvider
-    transitionState: TransitionState, // inherited from ToastProvider
+    transitionState: TransitionStatus, // inherited from ToastProvider
     [key: string]: any
 };
 
-export const DefaultToast: React.FC<ToastProps> = props => {
+export const DefaultToast = (props: ToastProps) => {
     const {
         appearance,
         autoDismiss,
@@ -240,6 +239,16 @@ export const DefaultToast: React.FC<ToastProps> = props => {
         onMouseLeave,
         ...otherProps
     } = props;
+    const dismissButtonStyle = {
+        border: 0,
+        clip: 'rect(1px, 1px, 1px, 1px)',
+        height: 1,
+        overflow: 'hidden',
+        padding: 0,
+        position: 'absolute',
+        whiteSpace: 'nowrap',
+        width: 1,
+    } as React.CSSProperties;
     return (
         <ToastElement
             appearance={appearance}
@@ -262,16 +271,7 @@ export const DefaultToast: React.FC<ToastProps> = props => {
                     <CloseIcon className="react-toast-notifications__toast__dismiss-icon" />
                     <span
                         className="react-toast-notifications__toast__dismiss-text"
-                        css={{
-                            border: 0,
-                            clip: 'rect(1px, 1px, 1px, 1px)',
-                            height: 1,
-                            overflow: 'hidden',
-                            padding: 0,
-                            position: 'absolute',
-                            whiteSpace: 'nowrap',
-                            width: 1,
-                        }}
+                        style={dismissButtonStyle}
                     >Close</span>
                 </DisMissButton>
             ) : null}

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Placement } from './types';
 import { gutter } from './ToastElement';
-import { PointerEventsProperty } from 'csstype';
 
 const placements = {
     'top-left': { top: 0, left: 0 },
@@ -13,31 +12,34 @@ const placements = {
 };
 
 export type ToastContainerProps = {
-    children?: Node,
     hasToasts: boolean,
     placement: Placement,
+    children?: Node,
     [key: string]: any
 };
 
-export const ToastContainer: React.FC<ToastContainerProps> = props => {
+
+
+export const ToastContainer = (props: ToastContainerProps) => {
     const {
         hasToasts,
         placement,
         ...otherProps
     } = props;
+    const mystyles = {
+        boxSizing: 'border-box',
+        maxHeight: '100%',
+        overflow: 'hidden',
+        padding: gutter,
+        pointerEvents: hasToasts ? null : 'none',
+        position: 'fixed',
+        zIndex: 1000,
+        ...placements[placement],
+    } as React.CSSProperties;
     return (
         <div
             className="react-toast-notifications__container"
-            css={{
-                boxSizing: 'border-box',
-                maxHeight: '100%',
-                overflow: 'hidden',
-                padding: gutter,
-                pointerEvents: hasToasts ? null as unknown as PointerEventsProperty  : 'none' as PointerEventsProperty ,
-                position: 'fixed',
-                zIndex: 1000,
-                ...placements[placement],
-            }}
+            style={mystyles}
             {...otherProps}
         />
     );
