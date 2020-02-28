@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import logo from './logo.svg';
 import './App.css';
+import ThemedButton from './components/theme/themed-button';
+import { themes, ThemeContext } from './components/theme/theme-context';
 
 function App() {
+  const [theme, setTheme] = useState('light');
+  function toggleTheme() {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  }
   return (
     <div className="App">
       <header className="App-header">
@@ -19,6 +25,9 @@ function App() {
           Learn React
         </a>
       </header>
+      <ThemeContext.Provider value={{theme: themes.get(theme), changeTheme: toggleTheme}}>
+        <ThemedButton />
+      </ThemeContext.Provider>
     </div>
   );
 }
